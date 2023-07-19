@@ -3,15 +3,13 @@ is now open source big thanks to wraithdu for releaseing the source code.
 
 # sbiextra
 
-*** NOTE: You'll need the Microsoft Visual C++ 2008 SP1 Runtimes for the DLL to work. ***
-
-I've created a DLL to block sandboxed processes from accessing information about processes running outside
-the sandbox, and to prevent them from reading the memory of any process not running in their same sandbox.
+A DLL to block sandboxed processes from accessing information about processes running outside
+the sandbox, and to prevent them from reading the memory of any process not running in their same sandbox (obsolete, as of [sbie 5.55.16](https://github.com/sandboxie-plus/Sandboxie/blob/master/CHANGELOG.md#1016--55516---2022-04-01) this protection is built into the driver).
 This is accomplished by hooking several API functions:
 
 - NtOpenProcess
 - NtQuerySystemInformation
-- NtReadVirtualMemory
+- NtReadVirtualMemory (bsolete, as of [sbie 5.55.16](https://github.com/sandboxie-plus/Sandboxie/blob/master/CHANGELOG.md#1016--55516---2022-04-01))
 - CreateToolhelp32Snapshot
 - BlockInput
 - InternalGetWindowText
