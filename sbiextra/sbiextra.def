@@ -1,0 +1,3 @@
+LIBRARY sbiextra.dll
+EXPORTS
+	InjectDllMain
