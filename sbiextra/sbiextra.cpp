@@ -25,17 +25,17 @@ using std::vector;
 							) \
 						)
 
-// define structures
+/*// define structures
 typedef struct _CLIENT_ID
 {
 	HANDLE UniqueProcess;
 	HANDLE UniqueThread;
-} CLIENT_ID, *PCLIENT_ID;
+} CLIENT_ID, *PCLIENT_ID;*/
 
 // define PIDFUNC
 typedef BOOL (WINAPI *PIDFUNC)(DWORD);
 // define hook function pointers
-typedef NTSTATUS (NTAPI *P_NtOpenProcess)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, PCLIENT_ID);
+typedef NTSTATUS (NTAPI *P_NtOpenProcess)(PHANDLE, ACCESS_MASK, POBJECT_ATTRIBUTES, CLIENT_ID*);
 typedef NTSTATUS (NTAPI *P_NtReadVirtualMemory)(HANDLE, LPVOID, LPVOID, ULONG, ULONG *);
 typedef NTSTATUS (WINAPI *P_NtQuerySystemInformation)(SYSTEM_INFORMATION_CLASS, PVOID, ULONG, PULONG);
 typedef HANDLE (WINAPI *P_CreateToolhelp32Snapshot)(DWORD, DWORD);
@@ -48,7 +48,7 @@ typedef LRESULT (WINAPI *P_SendMessageW)(HWND, UINT, WPARAM, LPARAM);
 // internal use
 typedef NTSTATUS (WINAPI *P_NtQueryInformationProcess)(HANDLE, PROCESSINFOCLASS, PVOID, ULONG, PULONG);
 // Sandboxie functions
-typedef void *(__stdcall *P_SbieDll_Hook)(const char *, void *, void *);
+typedef void *(__stdcall *P_SbieDll_Hook)(const char *, void *, void *, HMODULE);
 typedef LONG (__stdcall *P_SbieApi_QueryProcess)(ULONG_PTR, WCHAR *, WCHAR *, WCHAR *, ULONG *);
 typedef LONG (__stdcall *P_SbieApi_GetHomePath)(WCHAR *, ULONG, WCHAR *, ULONG);
 
@@ -266,7 +266,7 @@ static BOOL IsSBIEProc(LPCWSTR procPath)
 
 //~~ HOOK FUNCTIONS ~~//
 
-static NTSTATUS MyNtOpenProcess(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, PCLIENT_ID ClientId)
+static NTSTATUS MyNtOpenProcess(PHANDLE ProcessHandle, ACCESS_MASK DesiredAccess, POBJECT_ATTRIBUTES ObjectAttributes, CLIENT_ID* ClientId)
 {
 	_DebugWrite(L"NtOpenProcess intercepted");
 	// allow opening of sandboxed processes and child processes
@@ -521,25 +521,25 @@ __declspec(dllexport) void InjectDllMain(HINSTANCE SbieDll, ULONG_PTR UnusedPara
 	pSendMessageW = (P_SendMessageW) GetProcAddress(User32, "SendMessageW");
 	// hook the functions
 	if (pNtOpenProcess && (ini.GetLongValue(L"sbiextra", L"NtOpenProcess", 1) || IniLoadError))
-		pNtOpenProcess = (P_NtOpenProcess) SbieDll_Hook("NtOpenProcess", pNtOpenProcess, MyNtOpenProcess);
+		pNtOpenProcess = (P_NtOpenProcess) SbieDll_Hook("NtOpenProcess", pNtOpenProcess, MyNtOpenProcess, Ntdll);
 	if (pNtReadVirtualMemory && (ini.GetLongValue(L"sbiextra", L"NtReadVirtualmemory", 1) || IniLoadError))
-		pNtReadVirtualMemory = (P_NtReadVirtualMemory) SbieDll_Hook("NtReadVirtualMemory", pNtReadVirtualMemory, MyNtReadVirtualMemory);
+		pNtReadVirtualMemory = (P_NtReadVirtualMemory) SbieDll_Hook("NtReadVirtualMemory", pNtReadVirtualMemory, MyNtReadVirtualMemory, Ntdll);
 	if (pNtQuerySystemInformation && (ini.GetLongValue(L"sbiextra", L"NtQuerySystemInformation", 1) || IniLoadError))
-		pNtQuerySystemInformation = (P_NtQuerySystemInformation) SbieDll_Hook("NtQuerySystemInformation", pNtQuerySystemInformation, MyNtQuerySystemInformation);
+		pNtQuerySystemInformation = (P_NtQuerySystemInformation) SbieDll_Hook("NtQuerySystemInformation", pNtQuerySystemInformation, MyNtQuerySystemInformation, Ntdll);
 	if (pCreateToolhelp32Snapshot && (ini.GetLongValue(L"sbiextra", L"CreateToolhelp32Snapshot", 1) || IniLoadError))
-		pCreateToolhelp32Snapshot = (P_CreateToolhelp32Snapshot) SbieDll_Hook("CreateToolhelp32Snapshot", pCreateToolhelp32Snapshot, MyCreateToolhelp32Snapshot);
+		pCreateToolhelp32Snapshot = (P_CreateToolhelp32Snapshot) SbieDll_Hook("CreateToolhelp32Snapshot", pCreateToolhelp32Snapshot, MyCreateToolhelp32Snapshot, Kernel32);
 	if (pBlockInput && (ini.GetLongValue(L"sbiextra", L"BlockInput", 1) || IniLoadError))
-		pBlockInput = (P_BlockInput) SbieDll_Hook("BlockInput", pBlockInput, MyBlockInput);
+		pBlockInput = (P_BlockInput) SbieDll_Hook("BlockInput", pBlockInput, MyBlockInput, User32);
 	if (pInternalGetWindowText && (ini.GetLongValue(L"sbiextra", L"InternalGetWindowText", 1) || IniLoadError))
-		pInternalGetWindowText = (P_InternalGetWindowText) SbieDll_Hook("InternalGetWindowText", pInternalGetWindowText, MyInternalGetWindowText);
+		pInternalGetWindowText = (P_InternalGetWindowText) SbieDll_Hook("InternalGetWindowText", pInternalGetWindowText, MyInternalGetWindowText, User32);
 	if (pGetWindowTextA && (ini.GetLongValue(L"sbiextra", L"GetWindowTextA", 1) || IniLoadError))
-		pGetWindowTextA = (P_GetWindowTextA) SbieDll_Hook("GetWindowTextA", pGetWindowTextA, MyGetWindowTextA);
+		pGetWindowTextA = (P_GetWindowTextA) SbieDll_Hook("GetWindowTextA", pGetWindowTextA, MyGetWindowTextA, User32);
 	if (pGetWindowTextW && (ini.GetLongValue(L"sbiextra", L"GetWindowTextW", 1) || IniLoadError))
-		pGetWindowTextW = (P_GetWindowTextW) SbieDll_Hook("GetWindowTextW", pGetWindowTextW, MyGetWindowTextW);
+		pGetWindowTextW = (P_GetWindowTextW) SbieDll_Hook("GetWindowTextW", pGetWindowTextW, MyGetWindowTextW, User32);
 	if (pSendMessageA && (ini.GetLongValue(L"sbiextra", L"SendMessageA", 1) || IniLoadError))
-		pSendMessageA = (P_SendMessageA) SbieDll_Hook("SendMessageA", pSendMessageA, MySendMessageA);
+		pSendMessageA = (P_SendMessageA) SbieDll_Hook("SendMessageA", pSendMessageA, MySendMessageA, User32);
 	if (pSendMessageW && (ini.GetLongValue(L"sbiextra", L"SendMessageW", 1) || IniLoadError))
-		pSendMessageW = (P_SendMessageW) SbieDll_Hook("SendMessageW", pSendMessageW, MySendMessageW);
+		pSendMessageW = (P_SendMessageW) SbieDll_Hook("SendMessageW", pSendMessageW, MySendMessageW, User32);
 	if (fShowDebug)
 	{
 		_snwprintf_s(debug, DEBUG_LEN, DEBUG_LEN,
